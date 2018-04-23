@@ -1,0 +1,17 @@
+{
+  "ams_project" : "ams_project_test",
+  "ams_token" : "ams_token_test",
+  "ams_pull_sub" : "ams_pull_sub_test",
+  "ams_publish_topic": "ams_publish_topic_test",
+  "ams_pull_url" : "ams_pull_url_test",
+  "ams_publish_url" : "ams_publish_url_test",
+  "mongo_host" : "mongo_host_test",
+  "mongo_port" : 9999,
+  "mongo_db": "mongo_db_test",
+  "mongo_col" : "mongo_col_test",
+  "hdfs_nn" : "hdfs_nn_test",
+  "hdfs_port" : 9999,
+  "hdfs_filename": "hdfs_filename_test",
+  "hdfs_user": "hdfs_user_test",
+  "hdfs_path" : "hdfs://{{hdfs_nn}}:{{hdfs_port}}/user/{{hdfs_user}}/{{hdfs_filename}}"
+}
