@@ -90,6 +90,14 @@ class MessageData implements Cloneable{
     public void setError(DataflowError err) { this.errors.add(err); }
 
     @Override
+    public String toString() {
+        return "MessageData{" +
+                "message='" + message + '\'' +
+                ", errors=" + errors +
+                '}';
+    }
+
+    @Override
     protected Object clone() throws CloneNotSupportedException {
         return super.clone();
     }
@@ -109,6 +117,14 @@ class DataflowError {
 
     public void setErrormessage(String errormessage) {
         this.errormessage = errormessage;
+    }
+
+    @Override
+    public String toString() {
+        return "DataflowError{" +
+                "service='" + service + '\'' +
+                ", errormessage='" + errormessage + '\'' +
+                '}';
     }
 
     @Override

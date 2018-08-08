@@ -28,5 +28,7 @@ The configuration file that contains important information for the job to run, s
   "proxy_scheme": "",
   "proxy_url": "proxy url",
   "proxy_port": proxy_port (should be declared as an integer, not as a string, e.g. 9000)
+  "retry_count": 5 (should be declared as an integer, how many times should it retry to connect to ams before dropping the connection)
+  "retry_interval": 5000 (should be declared as an integer in milliseconds how oftrn should it try to reconnect)
 }
 ```

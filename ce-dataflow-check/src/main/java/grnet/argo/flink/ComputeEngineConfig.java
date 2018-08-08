@@ -30,10 +30,14 @@ public class ComputeEngineConfig extends ExecutionConfig.GlobalJobParameters {
     private String proxy_url;
     private Integer proxy_port;
     private Boolean ssl_enabled;
+    private Integer retry_count;
+    private Integer retry_interval;
 
-    public ComputeEngineConfig() {}
+    public ComputeEngineConfig(String ams_host, String ams_project, String ams_token, String ams_pull_sub, String ams_publish_topic, String ams_pull_url,
+                               String ams_publish_url, String mongo_host, Integer mongo_port, String mongo_db, String mongo_col, String hdfs_nn, Integer hdfs_port,
+                               String hdfs_filename, String hdfs_user, String hdfs_path, Boolean proxy_enabled, String proxy_scheme,
+                               String proxy_url, Integer proxy_port, Boolean ssl_enabled, Integer retry_count, Integer retry_interval) {
 
-    public ComputeEngineConfig(String ams_host, String ams_project, String ams_token, String ams_pull_sub, String ams_publish_topic, String ams_pull_url, String ams_publish_url, String mongo_host, Integer mongo_port, String mongo_db, String mongo_col, String hdfs_nn, Integer hdfs_port, String hdfs_filename, String hdfs_user, String hdfs_path, Boolean proxy_enabled, String proxy_scheme, String proxy_url, Integer proxy_port, Boolean ssl_enabled) {
         this.ams_host = ams_host;
         this.ams_project = ams_project;
         this.ams_token = ams_token;
@@ -55,6 +59,9 @@ public class ComputeEngineConfig extends ExecutionConfig.GlobalJobParameters {
         this.proxy_url = proxy_url;
         this.proxy_port = proxy_port;
         this.ssl_enabled = ssl_enabled;
+        this.retry_count = retry_count;
+        this.retry_interval = retry_interval;
+
     }
 
     public String getAms_host() {
@@ -223,5 +230,22 @@ public class ComputeEngineConfig extends ExecutionConfig.GlobalJobParameters {
 
     public void setSsl_enabled(Boolean ssl_enabled) {
         this.ssl_enabled = ssl_enabled;
+    }
+
+    public Integer getRetry_count() {
+        return retry_count;
+    }
+
+    public void setRetry_count(Integer retry_count) {
+        this.retry_count = retry_count;
+    }
+
+
+    public Integer getRetry_interval() {
+        return retry_interval;
+    }
+
+    public void setRetry_interval(Integer retry_interval) {
+        this.retry_interval = retry_interval;
     }
 }

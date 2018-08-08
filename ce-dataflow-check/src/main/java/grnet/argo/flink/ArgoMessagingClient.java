@@ -6,19 +6,21 @@ import java.io.InputStreamReader;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
+import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
@@ -34,37 +36,63 @@ public class ArgoMessagingClient {
 
     private CloseableHttpClient httpClient = null;
     private ComputeEngineConfig ce_cfg = null;
-    private RequestConfig req_confg =  null;
+    private RequestConfig req_cfg =  null;
 
     public ArgoMessagingClient(ComputeEngineConfig ce_cfg) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException{
         this.ce_cfg = ce_cfg;
+        BuildClientConfig();
         BuildHttpClient();
-        BuildProxyConfig();
     }
 
     /**
-     *  Configure the httpclient to trust self signed certs
+     *  Configure the httpclient
      */
     private void BuildHttpClient() throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException{
-        if (this.ce_cfg.getSsl_enabled()) {
+
+        // check if ssl is enabled
+        SSLConnectionSocketFactory sslsf = null;
+
+        if (!this.ce_cfg.getSsl_enabled()) {
             // Create ssl context
             SSLContextBuilder builder = new SSLContextBuilder();
             builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
-            SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(builder.build());
-            this.httpClient = HttpClients.custom().setSSLSocketFactory(sslsf).build();
-        } else {
-            this.httpClient = HttpClients.createDefault();
+            sslsf = new SSLConnectionSocketFactory(builder.build());
         }
+
+        // socket config
+        SocketConfig socketCfg = SocketConfig.custom().
+                setSoTimeout(30000).
+                build();
+
+        // build the client
+        this.httpClient = HttpClients.custom().
+                setSSLSocketFactory(sslsf).
+                setDefaultRequestConfig(this.req_cfg).
+                setDefaultSocketConfig(socketCfg).
+                setRetryHandler(new AmsHttpRequestRetryHandler(this.ce_cfg.getRetry_count(), this.ce_cfg.getRetry_interval())).
+                build();
     }
 
     /**
      * Create a configuration for using http proxy on each request
      */
-    private void BuildProxyConfig(){
+    private void BuildClientConfig(){
+
+        RequestConfig.Builder client_builder = RequestConfig.custom();
+
+        // check if there proxy is enabled
         if (this.ce_cfg.getProxy_enabled()) {
             HttpHost proxy = new HttpHost(this.ce_cfg.getProxy_url(), this.ce_cfg.getProxy_port(), this.ce_cfg.getProxy_scheme());
-            this.req_confg = RequestConfig.custom().setProxy(proxy).build();
+            client_builder.setProxy(proxy);
         }
+
+        // set timeout policy
+        client_builder.setConnectTimeout(30000);
+        client_builder.setConnectionRequestTimeout(30000);
+
+        // build the config
+        this.req_cfg = client_builder.build();
+
     }
 
     /**
@@ -84,9 +112,9 @@ public class ArgoMessagingClient {
     public  String doPublishMessage(MessageData msg_data) throws Exception {
         Gson gson = new GsonBuilder().serializeNulls().create();
         String url = ConfigManager.composeURL(this.ce_cfg.getAms_publish_url(), "\\{\\{.*?\\}\\}", this.ce_cfg);
-        ArgoPublishRequestStructure[] req_strcture = new ArgoPublishRequestStructure[1] ;
-        req_strcture[0] = new ArgoPublishRequestStructure(null, gson.toJson(msg_data));
-        StringEntity postBody = new StringEntity(gson.toJson(new ArgoPublishRequest(req_strcture)));
+        ArgoPublishRequestStructure[] req_structure = new ArgoPublishRequestStructure[1] ;
+        req_structure[0] = new ArgoPublishRequestStructure(null, gson.toJson(msg_data));
+        StringEntity postBody = new StringEntity(gson.toJson(new ArgoPublishRequest(req_structure)));
         System.out.println(gson.toJson(msg_data));
         postBody.setContentType("application/json");
         return this.doPost(url, postBody);
@@ -100,10 +128,9 @@ public class ArgoMessagingClient {
      * @throws IOException
      */
     private String doPost(String url, StringEntity content) throws IOException{
+
         // Set up a post request
         HttpPost post_req = new HttpPost(url);
-        // configure the request to use proxy
-        if (this.ce_cfg.getProxy_enabled()){ post_req.setConfig(this.req_confg); }
         post_req.setEntity(content);
         CloseableHttpResponse response = this.httpClient.execute(post_req);
         HttpEntity entity = response.getEntity();
@@ -119,6 +146,37 @@ public class ArgoMessagingClient {
         response.close();
         return current_msg.toString();
         }
+
+    /**
+     * Close AMS  client
+     */
+    public void close() throws IOException {
+        this.httpClient.close();
+    }
+
+    class AmsHttpRequestRetryHandler implements HttpRequestRetryHandler {
+
+        private int retryCount;
+        private int retryInterval;
+
+        public AmsHttpRequestRetryHandler(int retryCount, int retryInterval) {
+            this.retryCount = retryCount;
+            this.retryInterval = retryInterval;
+        }
+
+        @Override
+        public boolean retryRequest(IOException e, int retryCount, HttpContext httpContext) {
+            LOGGER.error("Retrying to connect to AMS. Attempt: " + String.valueOf(retryCount));
+            synchronized (this) {
+                try {
+                    wait(this.retryInterval);
+                } catch(Exception exp) {
+                    LOGGER.error(exp.getMessage());
+                }
+            }
+            return retryCount < this.retryCount;
+        }
+    }
 
     class ArgoPublishRequest {
         ArgoPublishRequestStructure[] messages;

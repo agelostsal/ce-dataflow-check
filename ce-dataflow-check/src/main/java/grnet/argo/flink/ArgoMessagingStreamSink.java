@@ -25,7 +25,22 @@ public class ArgoMessagingStreamSink extends RichSinkFunction<MessageData> {
     }
 
     @Override
-    public void invoke(MessageData messageData) throws Exception {
-       this.ams_client.doPublishMessage(messageData);
+    public void close() throws Exception {
+        super.close();
+        if (this.ams_client != null)  {
+            this.ams_client.close();
+        }
+    }
+
+    @Override
+    public void invoke(MessageData messageData) {
+        String ams_pub_res;
+        try {
+            ams_pub_res = this.ams_client.doPublishMessage(messageData);
+            LOGGER.info("Published back to AMS. " + messageData.toString());
+            LOGGER.info("Response after publishing: " + ams_pub_res);
+        } catch (Exception e) {
+            LOGGER.error("ERROR while trying to publish message to AMS." + e.getMessage());
+        }
     }
 }

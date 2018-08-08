@@ -41,16 +41,21 @@ public class ConfigManager {
         try {
             // find the configuration file in the classpath, else search in the file system
             is = ConfigManager.class.getResourceAsStream("/".concat(filepath));
+
             if (is != null) {
                 br = new BufferedReader(new InputStreamReader(is));
             } else {
                 br = new BufferedReader(new FileReader(filepath));
             }
+
             while ((line = br.readLine()) != null) {
                 sb.append(line);
             }
-            System.out.println(sb);
-           return checkForNulls(loadJsonToObject(sb.toString(), cls));
+
+            Object obj = loadJsonToObject(sb.toString(), cls);
+            checkForNulls(obj);
+            return cls.cast(obj);
+
         } catch (FileNotFoundException e) {
             err_msg = e.getMessage() + ". File was not found neither in the classpath nor in the filesystem.";
             LOGGER.error(err_msg);
@@ -65,8 +70,8 @@ public class ConfigManager {
         return new GsonBuilder().serializeNulls().create().fromJson(json_config, cls);
     }
 
-    // Method that checks if all the fields of a configuration object have been properly filled with values
-    public static <T> T checkForNulls(T ce_cfg) throws Exception {
+    // Method that checks if all the fields of an object have been properly filled with values
+    public static <T> void checkForNulls(T ce_cfg) throws Exception {
         Field[] cfg_fields = ce_cfg.getClass().getDeclaredFields();
         for (Field fl : cfg_fields) {
             fl.setAccessible(true);
@@ -74,14 +79,13 @@ public class ConfigManager {
                 throw new NullPointerException("Null value for field : " + fl.getName() + ". Check the configuration file and make sure you have declared all fields.");
             }
         }
-        return ce_cfg;
     }
 
     /**
      * A method that takes in a url e.g. hdfs://{{host_nn}}:{{hdfs_port}}/{{hdfs_path_to_file}},
      * finds where the String interpolation happens, with the help of regular expressions, and then replaces
      * the placeholders with the respective values found in the configuration object, using the getter methods.
-     * E.g. for {{host_nn}}, it will try to find a getter method getHdfs_nn().
+     * E.g. for {{hdfs_nn}}, it will try to find a getter method getHdfs_nn().
      * @param url A string representing a url, containing patterns that should be replaced with actual values
      * @param regex The regex matching the patterns of the url
      * @param config Configuration object , containing the values that will be used for filling up the url string
